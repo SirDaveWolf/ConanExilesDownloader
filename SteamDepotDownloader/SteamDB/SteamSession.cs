@@ -60,8 +60,8 @@ namespace ConanExilesDownloader.SteamDB
             {
                 Username = Program.SteamUserCredentials.Username,
                 Password = Program.SteamUserCredentials.GetPlainTextPassword(),
-                AuthCode = Program.SteamUserCredentials.AuthCode?.ToLower(),
-                TwoFactorCode = Program.SteamUserCredentials.TwoFactorCode?.ToLower(),
+                AuthCode = Program.SteamUserCredentials.AuthCode,
+                TwoFactorCode = Program.SteamUserCredentials.TwoFactorCode,
                 SentryFileHash = sentryHash
             });
         }
@@ -118,8 +118,8 @@ namespace ConanExilesDownloader.SteamDB
             }
             else
             {
-                Program.ConnectingToSteamWindow.Close();
                 Program.MainWindow.Show();
+                Program.ConnectingToSteamWindow.Close();
             }
         }
 

@@ -12,16 +12,16 @@ namespace ConanExilesDownloader
 {
     public partial class AuthCodeWindow : Form
     {
-        private Boolean _isSteamGuard;
+        private Boolean _isTwoFactorAuth;
 
         public AuthCodeWindow()
         {
             InitializeComponent();
         }
 
-        public void SetInformation(Boolean isSteamGuard, String text)
+        public void SetInformation(Boolean isTwoFactorAuth, String text)
         {
-            _isSteamGuard = isSteamGuard;
+            _isTwoFactorAuth = isTwoFactorAuth;
             label1.Text = text;
         }
 
@@ -35,10 +35,10 @@ namespace ConanExilesDownloader
         {
             if (false == String.IsNullOrWhiteSpace(textBoxAuthCode.Text))
             {
-                if (_isSteamGuard)
-                    Program.SteamUserCredentials.AuthCode = textBoxAuthCode.Text;
-                else
+                if (_isTwoFactorAuth)
                     Program.SteamUserCredentials.TwoFactorCode = textBoxAuthCode.Text;
+                else
+                    Program.SteamUserCredentials.AuthCode = textBoxAuthCode.Text;
 
                 Program.ConnectingToSteamWindow.ContinueCallbacks();
                 Close();
