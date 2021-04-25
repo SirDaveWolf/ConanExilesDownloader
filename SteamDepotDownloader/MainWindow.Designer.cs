@@ -41,11 +41,15 @@ namespace ConanExilesDownloader
             this.linkLabelGoToBinaries = new System.Windows.Forms.LinkLabel();
             this.linkLabelGoToServer = new System.Windows.Forms.LinkLabel();
             this.label5 = new System.Windows.Forms.Label();
-            this.textBox1 = new System.Windows.Forms.TextBox();
-            this.textBox2 = new System.Windows.Forms.TextBox();
+            this.textBoxInstalllocationClient = new System.Windows.Forms.TextBox();
+            this.textBoxInstalllocationServer = new System.Windows.Forms.TextBox();
             this.label6 = new System.Windows.Forms.Label();
-            this.buttonPathClient = new System.Windows.Forms.Button();
+            this.buttonBrowsePathClient = new System.Windows.Forms.Button();
             this.buttonBrowsePathServer = new System.Windows.Forms.Button();
+            this.progressBarDownload = new System.Windows.Forms.ProgressBar();
+            this.buttonDownloadClient = new System.Windows.Forms.Button();
+            this.buttonDownloadServer = new System.Windows.Forms.Button();
+            this.buttonQuit = new System.Windows.Forms.Button();
             this.SuspendLayout();
             // 
             // label1
@@ -158,19 +162,19 @@ namespace ConanExilesDownloader
             this.label5.TabIndex = 11;
             this.label5.Text = "Install-Location Client:";
             // 
-            // textBox1
+            // textBoxInstalllocationClient
             // 
-            this.textBox1.Location = new System.Drawing.Point(15, 162);
-            this.textBox1.Name = "textBox1";
-            this.textBox1.Size = new System.Drawing.Size(424, 20);
-            this.textBox1.TabIndex = 12;
+            this.textBoxInstalllocationClient.Location = new System.Drawing.Point(15, 162);
+            this.textBoxInstalllocationClient.Name = "textBoxInstalllocationClient";
+            this.textBoxInstalllocationClient.Size = new System.Drawing.Size(424, 20);
+            this.textBoxInstalllocationClient.TabIndex = 12;
             // 
-            // textBox2
+            // textBoxInstalllocationServer
             // 
-            this.textBox2.Location = new System.Drawing.Point(15, 201);
-            this.textBox2.Name = "textBox2";
-            this.textBox2.Size = new System.Drawing.Size(424, 20);
-            this.textBox2.TabIndex = 14;
+            this.textBoxInstalllocationServer.Location = new System.Drawing.Point(15, 201);
+            this.textBoxInstalllocationServer.Name = "textBoxInstalllocationServer";
+            this.textBoxInstalllocationServer.Size = new System.Drawing.Size(424, 20);
+            this.textBoxInstalllocationServer.TabIndex = 14;
             // 
             // label6
             // 
@@ -181,14 +185,15 @@ namespace ConanExilesDownloader
             this.label6.TabIndex = 13;
             this.label6.Text = "Install-Location Server:";
             // 
-            // buttonPathClient
+            // buttonBrowsePathClient
             // 
-            this.buttonPathClient.Location = new System.Drawing.Point(445, 160);
-            this.buttonPathClient.Name = "buttonPathClient";
-            this.buttonPathClient.Size = new System.Drawing.Size(75, 23);
-            this.buttonPathClient.TabIndex = 15;
-            this.buttonPathClient.Text = "Browse";
-            this.buttonPathClient.UseVisualStyleBackColor = true;
+            this.buttonBrowsePathClient.Location = new System.Drawing.Point(445, 160);
+            this.buttonBrowsePathClient.Name = "buttonBrowsePathClient";
+            this.buttonBrowsePathClient.Size = new System.Drawing.Size(75, 23);
+            this.buttonBrowsePathClient.TabIndex = 15;
+            this.buttonBrowsePathClient.Text = "Browse";
+            this.buttonBrowsePathClient.UseVisualStyleBackColor = true;
+            this.buttonBrowsePathClient.Click += new System.EventHandler(this.BrowsePath);
             // 
             // buttonBrowsePathServer
             // 
@@ -198,17 +203,59 @@ namespace ConanExilesDownloader
             this.buttonBrowsePathServer.TabIndex = 16;
             this.buttonBrowsePathServer.Text = "Browse";
             this.buttonBrowsePathServer.UseVisualStyleBackColor = true;
+            this.buttonBrowsePathServer.Click += new System.EventHandler(this.BrowsePath);
+            // 
+            // progressBarDownload
+            // 
+            this.progressBarDownload.Location = new System.Drawing.Point(15, 255);
+            this.progressBarDownload.Name = "progressBarDownload";
+            this.progressBarDownload.Size = new System.Drawing.Size(505, 23);
+            this.progressBarDownload.TabIndex = 17;
+            // 
+            // buttonDownloadClient
+            // 
+            this.buttonDownloadClient.Location = new System.Drawing.Point(420, 284);
+            this.buttonDownloadClient.Name = "buttonDownloadClient";
+            this.buttonDownloadClient.Size = new System.Drawing.Size(100, 23);
+            this.buttonDownloadClient.TabIndex = 18;
+            this.buttonDownloadClient.Text = "Download Client";
+            this.buttonDownloadClient.UseVisualStyleBackColor = true;
+            this.buttonDownloadClient.Click += new System.EventHandler(this.buttonDownloadClient_Click);
+            // 
+            // buttonDownloadServer
+            // 
+            this.buttonDownloadServer.Location = new System.Drawing.Point(314, 284);
+            this.buttonDownloadServer.Name = "buttonDownloadServer";
+            this.buttonDownloadServer.Size = new System.Drawing.Size(100, 23);
+            this.buttonDownloadServer.TabIndex = 19;
+            this.buttonDownloadServer.Text = "Download Server";
+            this.buttonDownloadServer.UseVisualStyleBackColor = true;
+            this.buttonDownloadServer.Click += new System.EventHandler(this.buttonDownloadServer_Click);
+            // 
+            // buttonQuit
+            // 
+            this.buttonQuit.Location = new System.Drawing.Point(15, 285);
+            this.buttonQuit.Name = "buttonQuit";
+            this.buttonQuit.Size = new System.Drawing.Size(75, 23);
+            this.buttonQuit.TabIndex = 20;
+            this.buttonQuit.Text = "Quit";
+            this.buttonQuit.UseVisualStyleBackColor = true;
+            this.buttonQuit.Click += new System.EventHandler(this.buttonQuit_Click);
             // 
             // MainWindow
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.ClientSize = new System.Drawing.Size(530, 450);
+            this.ClientSize = new System.Drawing.Size(530, 320);
+            this.Controls.Add(this.buttonQuit);
+            this.Controls.Add(this.buttonDownloadServer);
+            this.Controls.Add(this.buttonDownloadClient);
+            this.Controls.Add(this.progressBarDownload);
             this.Controls.Add(this.buttonBrowsePathServer);
-            this.Controls.Add(this.buttonPathClient);
-            this.Controls.Add(this.textBox2);
+            this.Controls.Add(this.buttonBrowsePathClient);
+            this.Controls.Add(this.textBoxInstalllocationServer);
             this.Controls.Add(this.label6);
-            this.Controls.Add(this.textBox1);
+            this.Controls.Add(this.textBoxInstalllocationClient);
             this.Controls.Add(this.label5);
             this.Controls.Add(this.linkLabelGoToServer);
             this.Controls.Add(this.linkLabelGoToBinaries);
@@ -243,11 +290,15 @@ namespace ConanExilesDownloader
         private System.Windows.Forms.LinkLabel linkLabelGoToBinaries;
         private System.Windows.Forms.LinkLabel linkLabelGoToServer;
         private System.Windows.Forms.Label label5;
-        private System.Windows.Forms.TextBox textBox1;
-        private System.Windows.Forms.TextBox textBox2;
+        private System.Windows.Forms.TextBox textBoxInstalllocationClient;
+        private System.Windows.Forms.TextBox textBoxInstalllocationServer;
         private System.Windows.Forms.Label label6;
-        private System.Windows.Forms.Button buttonPathClient;
+        private System.Windows.Forms.Button buttonBrowsePathClient;
         private System.Windows.Forms.Button buttonBrowsePathServer;
+        private System.Windows.Forms.ProgressBar progressBarDownload;
+        private System.Windows.Forms.Button buttonDownloadClient;
+        private System.Windows.Forms.Button buttonDownloadServer;
+        private System.Windows.Forms.Button buttonQuit;
     }
 }
 

@@ -17,6 +17,8 @@ namespace ConanExilesDownloader.SteamDB
         private SteamUser _steamUser;
         private CallbackManager _steamCallbackManager;
 
+        private readonly TimeSpan STEAM3_TIMEOUT = TimeSpan.FromSeconds(30);
+
         public SteamSession()
         {
             _steamClient = new SteamClient();
@@ -118,6 +120,7 @@ namespace ConanExilesDownloader.SteamDB
             }
             else
             {
+                Program.SteamUserCredentials.LoggedOn = true;
                 Program.MainWindow.Show();
                 Program.ConnectingToSteamWindow.Close();
             }
@@ -188,12 +191,61 @@ namespace ConanExilesDownloader.SteamDB
 
         private void SessionTokenCallback(SteamUser.SessionTokenCallback obj)
         {
-            throw new NotImplementedException();
+            Program.SteamUserCredentials.SessionToken = obj.SessionToken;
         }
 
         private void LicenseListCallback(SteamApps.LicenseListCallback obj)
         {
-            throw new NotImplementedException();
+            if(obj.Result != EResult.OK)
+            {
+                MessageBox.Show($"Unable top receive license list! Error: {obj.Result}", Program.AppName);
+
+                return;
+            }
+
+
+        }
+
+        public delegate Boolean WaitCondition();
+        private object steamLock = new object();
+        private Int32 seq;
+
+        public Boolean WaitUntilCallback(Action submitter, WaitCondition waiter)
+        {
+            while (!waiter())
+            {
+                lock (steamLock)
+                {
+                    submitter();
+                }
+
+                int seq = this.seq;
+                do
+                {
+                    lock (steamLock)
+                    {
+                        WaitForCallbacks();
+                    }
+                }
+                while (this.seq == seq && !waiter());
+            }
+
+            return true;
+        }
+
+        private void WaitForCallbacks()
+        {
+            _steamCallbackManager.RunWaitCallbacks(TimeSpan.FromSeconds(1));
+
+            //TimeSpan diff = DateTime.Now - connectTime;
+
+            //if (diff > STEAM3_TIMEOUT && !bConnected)
+            //{
+            //    Console.WriteLine("Timeout connecting to Steam3.");
+            //    Abort();
+
+            //    return;
+            //}
         }
     }
 }

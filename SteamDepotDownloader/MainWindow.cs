@@ -43,5 +43,33 @@ namespace ConanExilesDownloader
         {
             Process.Start("https://steamdb.info/depot/443031/manifests/");
         }
+
+        private void buttonQuit_Click(Object sender, EventArgs e)
+        {
+            Close();
+        }
+
+        private void BrowsePath(Object sender, EventArgs e)
+        {
+            using (var fbd = new FolderBrowserDialog())
+            {
+                DialogResult result = fbd.ShowDialog();
+
+                if (result == DialogResult.OK && !string.IsNullOrWhiteSpace(fbd.SelectedPath))
+                {
+                    (sender as TextBox).Text = fbd.SelectedPath;
+                }
+            }
+        }
+
+        private void buttonDownloadClient_Click(Object sender, EventArgs e)
+        {
+
+        }
+
+        private void buttonDownloadServer_Click(Object sender, EventArgs e)
+        {
+
+        }
     }
 }

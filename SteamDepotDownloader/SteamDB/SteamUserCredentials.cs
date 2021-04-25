@@ -35,8 +35,9 @@ namespace ConanExilesDownloader.SteamDB
 
         public String SentryFileName { get; set; }
 
-        public Boolean LoggedOn { get; set; }
         public UInt64 SessionToken { get; set; }
+
+        public Boolean LoggedOn { get; set; }
 
         public String GetPlainTextPassword()
         {
