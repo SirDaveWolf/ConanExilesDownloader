@@ -64,6 +64,8 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Configuration\DownloadEntry.cs" />
+    <Compile Include="Configuration\LocalConfiguration.cs" />
     <Compile Include="ConnectingToSteam.cs">
       <SubType>Form</SubType>
     </Compile>
