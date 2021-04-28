@@ -23,8 +23,11 @@ namespace ConanExilesDownloader.SteamDB
 
         private readonly TimeSpan STEAM_TIMEOUT = TimeSpan.FromSeconds(30);
 
+        public delegate void LogOffAction();
+        private LogOffAction _onLogOff;
+
         public ReadOnlyCollection<SteamApps.LicenseListCallback.License> Licenses { get; private set; }
-        public Dictionary<UInt32, UInt64> PackageTokens { get; private set; }
+        public Dictionary<UInt32, UInt64> PackageTokens { get; private set; } = new Dictionary<UInt32, UInt64>();
 
         public SteamSession()
         {
@@ -43,7 +46,7 @@ namespace ConanExilesDownloader.SteamDB
             _steamCallbackManager.Subscribe<SteamUser.SessionTokenCallback>(SessionTokenCallback);
             _steamCallbackManager.Subscribe<SteamUser.UpdateMachineAuthCallback>(MachineAuthCallback);
             _steamCallbackManager.Subscribe<SteamUser.UpdateMachineAuthCallback>(UpdateMachineAuthCallback);
-            _steamCallbackManager.Subscribe<SteamUser.LoginKeyCallback>(LoginKeyCallback);
+            // _steamCallbackManager.Subscribe<SteamUser.LoginKeyCallback>(LoginKeyCallback);
 
             _steamCallbackManager.Subscribe<SteamApps.LicenseListCallback>(LicenseListCallback);
         }
@@ -59,8 +62,9 @@ namespace ConanExilesDownloader.SteamDB
             _steamClient.Connect();
         }
 
-        public void Logoff()
+        public void Logoff(LogOffAction logOffAction)
         {
+            _onLogOff = logOffAction;
             _steamUser.LogOff();
         }
 
@@ -74,9 +78,9 @@ namespace ConanExilesDownloader.SteamDB
          * 
          * ***/
 
-        public void RunCallbacks()
+        public void RunCallbacks(TimeSpan waitTime)
         {
-            _steamCallbackManager.RunCallbacks();
+            _steamCallbackManager.RunWaitAllCallbacks(waitTime);
         }
 
         private void ConnectedCallback(SteamClient.ConnectedCallback callback)
@@ -102,9 +106,12 @@ namespace ConanExilesDownloader.SteamDB
         {
             if (false == callback.UserInitiated)
             {
-                Thread.Sleep(TimeSpan.FromSeconds(5));
-
+                Thread.Sleep(TimeSpan.FromMilliseconds(100));
                 _steamClient.Connect();
+            }
+            else
+            {
+                if(_onLogOff != null) _onLogOff();
             }
         }
 
@@ -161,13 +168,9 @@ namespace ConanExilesDownloader.SteamDB
 
         private void MachineAuthCallback(SteamUser.UpdateMachineAuthCallback obj)
         {
-            Program.ConnectingToSteamWindow.PauseCallbacks();
-
             int fileSize;
             byte[] sentryHash;
-
-            var localAppData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
-            var sentryFile = Path.Combine(localAppData, obj.FileName);
+            var sentryFile = Path.Combine(Program.LocalConfigFolder, obj.FileName);
 
             using (var fs = File.Open(sentryFile, FileMode.OpenOrCreate, FileAccess.ReadWrite))
             {
@@ -207,14 +210,42 @@ namespace ConanExilesDownloader.SteamDB
             _steamClient.Disconnect();
         }
 
-        private void LoginKeyCallback(SteamUser.LoginKeyCallback obj)
-        {
-            throw new NotImplementedException();
-        }
+        //private void LoginKeyCallback(SteamUser.LoginKeyCallback obj)
+        //{
+        //    throw new NotImplementedException();
+        //}
 
         private void UpdateMachineAuthCallback(SteamUser.UpdateMachineAuthCallback obj)
         {
-            throw new NotImplementedException();
+            int fileSize;
+            byte[] sentryHash;
+            var sentryFile = Path.Combine(Program.LocalConfigFolder, obj.FileName);
+
+            using (var fs = File.Open(sentryFile, FileMode.OpenOrCreate, FileAccess.ReadWrite))
+            {
+                fs.Seek(obj.Offset, SeekOrigin.Begin);
+                fs.Write(obj.Data, 0, obj.BytesToWrite);
+                fileSize = (int)fs.Length;
+
+                fs.Seek(0, SeekOrigin.Begin);
+                using (var sha = SHA1.Create())
+                {
+                    sentryHash = sha.ComputeHash(fs);
+                }
+            }
+
+            _steamUser.SendMachineAuthResponse(new SteamUser.MachineAuthDetails()
+            {
+                JobID = obj.JobID,
+                FileName = obj.FileName,
+                BytesWritten = obj.BytesToWrite,
+                FileSize = fileSize,
+                Offset = obj.Offset,
+                Result = EResult.OK,
+                LastError = 0,
+                OneTimePassword = obj.OneTimePassword,
+                SentryFileHash = sentryHash
+            });
         }
 
         private void SessionTokenCallback(SteamUser.SessionTokenCallback obj)

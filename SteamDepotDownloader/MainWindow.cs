@@ -47,7 +47,12 @@ namespace ConanExilesDownloader
 
         private void buttonQuit_Click(Object sender, EventArgs e)
         {
-            Close();
+            Program.SteamSession.Logoff(() =>
+            {
+                Close();
+            });
+
+            Program.SteamSession.RunCallbacks(TimeSpan.FromSeconds(10));
         }
 
         private void BrowsePathClient(Object sender, EventArgs e)

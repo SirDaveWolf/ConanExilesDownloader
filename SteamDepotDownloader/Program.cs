@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using System.Windows.Forms;
@@ -17,6 +18,7 @@ namespace ConanExilesDownloader
         public static MainWindow MainWindow { get; set; }
 
         public static String AppName = "Conan Exiles Downloader";
+        public static String LocalConfigFolder = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "SteamContentDownloader");
 
         private static ApplicationContext _appContext;
 
@@ -25,6 +27,8 @@ namespace ConanExilesDownloader
         {
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
+
+            Directory.CreateDirectory(LocalConfigFolder);
 
             _appContext = new ApplicationContext();
             _appContext.MainForm = new LoginWindow();
