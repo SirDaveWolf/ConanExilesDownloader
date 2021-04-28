@@ -158,9 +158,9 @@ namespace ConanExilesDownloader
             this.label5.AutoSize = true;
             this.label5.Location = new System.Drawing.Point(12, 146);
             this.label5.Name = "label5";
-            this.label5.Size = new System.Drawing.Size(110, 13);
+            this.label5.Size = new System.Drawing.Size(126, 13);
             this.label5.TabIndex = 11;
-            this.label5.Text = "Install-Location Client:";
+            this.label5.Text = "Download location client:";
             // 
             // textBoxInstalllocationClient
             // 
@@ -181,9 +181,9 @@ namespace ConanExilesDownloader
             this.label6.AutoSize = true;
             this.label6.Location = new System.Drawing.Point(12, 185);
             this.label6.Name = "label6";
-            this.label6.Size = new System.Drawing.Size(115, 13);
+            this.label6.Size = new System.Drawing.Size(130, 13);
             this.label6.TabIndex = 13;
-            this.label6.Text = "Install-Location Server:";
+            this.label6.Text = "Download location server:";
             // 
             // buttonBrowsePathClient
             // 
@@ -193,7 +193,7 @@ namespace ConanExilesDownloader
             this.buttonBrowsePathClient.TabIndex = 15;
             this.buttonBrowsePathClient.Text = "Browse";
             this.buttonBrowsePathClient.UseVisualStyleBackColor = true;
-            this.buttonBrowsePathClient.Click += new System.EventHandler(this.BrowsePath);
+            this.buttonBrowsePathClient.Click += new System.EventHandler(this.BrowsePathClient);
             // 
             // buttonBrowsePathServer
             // 
@@ -203,7 +203,7 @@ namespace ConanExilesDownloader
             this.buttonBrowsePathServer.TabIndex = 16;
             this.buttonBrowsePathServer.Text = "Browse";
             this.buttonBrowsePathServer.UseVisualStyleBackColor = true;
-            this.buttonBrowsePathServer.Click += new System.EventHandler(this.BrowsePath);
+            this.buttonBrowsePathServer.Click += new System.EventHandler(this.BrowsePathServer);
             // 
             // progressBarDownload
             // 
@@ -271,6 +271,7 @@ namespace ConanExilesDownloader
             this.FormBorderStyle = System.Windows.Forms.FormBorderStyle.FixedSingle;
             this.Name = "MainWindow";
             this.Text = "Conan Exiles Downloader";
+            this.Load += new System.EventHandler(this.MainWindow_Load);
             this.ResumeLayout(false);
             this.PerformLayout();
 

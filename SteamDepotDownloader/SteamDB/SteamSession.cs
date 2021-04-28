@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.IO;
 using System.Linq;
 using System.Security.Cryptography;
@@ -17,7 +18,13 @@ namespace ConanExilesDownloader.SteamDB
         private SteamUser _steamUser;
         private CallbackManager _steamCallbackManager;
 
-        private readonly TimeSpan STEAM3_TIMEOUT = TimeSpan.FromSeconds(30);
+        private SteamApps _steamApps;
+        private SteamCloud _steamCloud;
+
+        private readonly TimeSpan STEAM_TIMEOUT = TimeSpan.FromSeconds(30);
+
+        public ReadOnlyCollection<SteamApps.LicenseListCallback.License> Licenses { get; private set; }
+        public Dictionary<UInt32, UInt64> PackageTokens { get; private set; }
 
         public SteamSession()
         {
@@ -25,24 +32,47 @@ namespace ConanExilesDownloader.SteamDB
             _steamCallbackManager = new CallbackManager(_steamClient);
 
             _steamUser = _steamClient.GetHandler<SteamUser>();
+            _steamApps = _steamClient.GetHandler<SteamApps>();
+            _steamCloud = _steamClient.GetHandler<SteamCloud>();
 
             _steamCallbackManager.Subscribe<SteamClient.ConnectedCallback>(ConnectedCallback);
             _steamCallbackManager.Subscribe<SteamClient.DisconnectedCallback>(DisconnectedCallback);
-
             _steamCallbackManager.Subscribe<SteamUser.LoggedOnCallback>(LogOnCallback);
-            _steamCallbackManager.Subscribe<SteamUser.SessionTokenCallback>(SessionTokenCallback);
-            _steamCallbackManager.Subscribe<SteamApps.LicenseListCallback>(LicenseListCallback);
-            _steamCallbackManager.Subscribe<SteamUser.UpdateMachineAuthCallback>(UpdateMachineAuthCallback);
-            _steamCallbackManager.Subscribe<SteamUser.LoginKeyCallback>(LoginKeyCallback);
             _steamCallbackManager.Subscribe<SteamUser.LoggedOffCallback>(OnLoggedOff);
 
+            _steamCallbackManager.Subscribe<SteamUser.SessionTokenCallback>(SessionTokenCallback);
             _steamCallbackManager.Subscribe<SteamUser.UpdateMachineAuthCallback>(MachineAuthCallback);
+            _steamCallbackManager.Subscribe<SteamUser.UpdateMachineAuthCallback>(UpdateMachineAuthCallback);
+            _steamCallbackManager.Subscribe<SteamUser.LoginKeyCallback>(LoginKeyCallback);
+
+            _steamCallbackManager.Subscribe<SteamApps.LicenseListCallback>(LicenseListCallback);
         }
+
+        /***
+         * 
+         * Requests
+         * 
+         * ***/
 
         public void Login()
         {
             _steamClient.Connect();
         }
+
+        public void Logoff()
+        {
+            _steamUser.LogOff();
+        }
+
+        public void RequestPackageInfo(List<UInt32> packageIds)
+        {
+        }
+
+        /***
+         * 
+         * Callbacks
+         * 
+         * ***/
 
         public void RunCallbacks()
         {
@@ -70,9 +100,12 @@ namespace ConanExilesDownloader.SteamDB
 
         private void DisconnectedCallback(SteamClient.DisconnectedCallback callback)
         {
-            Thread.Sleep(TimeSpan.FromSeconds(5));
+            if (false == callback.UserInitiated)
+            {
+                Thread.Sleep(TimeSpan.FromSeconds(5));
 
-            _steamClient.Connect();
+                _steamClient.Connect();
+            }
         }
 
         private void LogOnCallback(SteamUser.LoggedOnCallback obj)
@@ -174,11 +207,6 @@ namespace ConanExilesDownloader.SteamDB
             _steamClient.Disconnect();
         }
 
-        public void Logoff()
-        {
-            _steamUser.LogOff();
-        }
-
         private void LoginKeyCallback(SteamUser.LoginKeyCallback obj)
         {
             throw new NotImplementedException();
@@ -203,7 +231,16 @@ namespace ConanExilesDownloader.SteamDB
                 return;
             }
 
+            Licenses = obj.LicenseList;
 
+            foreach (var license in obj.LicenseList)
+            {
+                if (license.AccessToken > 0)
+                {
+                    if(false == PackageTokens.ContainsKey(license.PackageID))
+                        PackageTokens.Add(license.PackageID, license.AccessToken);
+                }
+            }
         }
 
         public delegate Boolean WaitCondition();

@@ -40,6 +40,7 @@ namespace ConanExilesDownloader
                 else
                     Program.SteamUserCredentials.AuthCode = textBoxAuthCode.Text;
 
+                // Continue callbacks and wait for Steam's response
                 Program.ConnectingToSteamWindow.ContinueCallbacks();
                 Close();
             }
@@ -51,6 +52,7 @@ namespace ConanExilesDownloader
 
         private void AuthCodeWindow_Shown(Object sender, EventArgs e)
         {
+            // Pause callbacks, so we won't spam login requests whilst waiting for SteamGuard
             Program.ConnectingToSteamWindow.PauseCallbacks();
         }
 
