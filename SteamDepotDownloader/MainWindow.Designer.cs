@@ -52,6 +52,7 @@ namespace ConanExilesDownloader
             this.buttonDownloadServer = new System.Windows.Forms.Button();
             this.buttonQuit = new System.Windows.Forms.Button();
             this.timerCallbacks = new System.Windows.Forms.Timer(this.components);
+            this.checkBoxEnabledLogging = new System.Windows.Forms.CheckBox();
             this.SuspendLayout();
             // 
             // label1
@@ -249,11 +250,23 @@ namespace ConanExilesDownloader
             this.timerCallbacks.Interval = 1000;
             this.timerCallbacks.Tick += new System.EventHandler(this.timerCallbacks_Tick);
             // 
+            // checkBoxEnabledLogging
+            // 
+            this.checkBoxEnabledLogging.AutoSize = true;
+            this.checkBoxEnabledLogging.Location = new System.Drawing.Point(16, 232);
+            this.checkBoxEnabledLogging.Name = "checkBoxEnabledLogging";
+            this.checkBoxEnabledLogging.Size = new System.Drawing.Size(132, 17);
+            this.checkBoxEnabledLogging.TabIndex = 21;
+            this.checkBoxEnabledLogging.Text = "Enable debug logging ";
+            this.checkBoxEnabledLogging.UseVisualStyleBackColor = true;
+            this.checkBoxEnabledLogging.CheckedChanged += new System.EventHandler(this.checkBoxEnabledLogging_CheckedChanged);
+            // 
             // MainWindow
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.ClientSize = new System.Drawing.Size(530, 320);
+            this.Controls.Add(this.checkBoxEnabledLogging);
             this.Controls.Add(this.buttonQuit);
             this.Controls.Add(this.buttonDownloadServer);
             this.Controls.Add(this.buttonDownloadClient);
@@ -308,6 +321,7 @@ namespace ConanExilesDownloader
         private System.Windows.Forms.Button buttonDownloadServer;
         private System.Windows.Forms.Button buttonQuit;
         private System.Windows.Forms.Timer timerCallbacks;
+        private System.Windows.Forms.CheckBox checkBoxEnabledLogging;
     }
 }
 

@@ -11,6 +11,8 @@ namespace ConanExilesDownloader.Logging
     {
         private static object _fileLock = new object();
 
+        public static Boolean IsEnabled { get; set; } = true;
+
         public static void LogMessage(String format, params Object[] args)
         {
             LogMessage(String.Format(format, args));
@@ -18,10 +20,16 @@ namespace ConanExilesDownloader.Logging
 
         public static void LogMessage(String text)
         {
-            lock (_fileLock)
+            if (IsEnabled)
             {
-                var logFile = Path.Combine(Directory.GetCurrentDirectory(), "app.log");
-                File.AppendAllText(logFile, $"{DateTime.Now} - {text}\n");
+                lock (_fileLock)
+                {
+                    if (IsEnabled)
+                    {
+                        var logFile = Path.Combine(Directory.GetCurrentDirectory(), "app.log");
+                        File.AppendAllText(logFile, $"{DateTime.Now} - {text}\n");
+                    }
+                }
             }
         }
     }

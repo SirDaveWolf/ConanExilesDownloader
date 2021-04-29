@@ -866,9 +866,8 @@ namespace ConanExilesDownloader.SteamDB
             {
                 var fileFinalPath = Path.Combine(depot.installDir, file.FileName);
                 FileLog.LogMessage("{0,6:#00.00}% {1}", ((float)sizeDownloaded / (float)depotDownloadCounter.CompleteDownloadSize) * 100.0f, fileFinalPath);
-                Program.MainWindow.SetProgressBar((Int32)(((float)sizeDownloaded / (float)depotDownloadCounter.CompleteDownloadSize)) * 100);
+                Program.MainWindow.SetProgressBar(Convert.ToInt32(((Single)sizeDownloaded / depotDownloadCounter.CompleteDownloadSize) * 100.0f));
             }
-
         }
 
         private class ChunkMatch

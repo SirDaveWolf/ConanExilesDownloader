@@ -8,6 +8,7 @@ using System.Drawing;
 using System.IO;
 using System.Linq;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 
@@ -27,12 +28,15 @@ namespace ConanExilesDownloader
         }
 
         private delegate void PGB(Int32 v);
+        private delegate void SCS(Boolean e);
         private PGB _setProgressBar;
+        private SCS _setControlStatus;
 
         public void SetProgressBar(Int32 value)
         {
             if (this.progressBarDownload.InvokeRequired)
                 this.Invoke(_setProgressBar, value);
+
             this.progressBarDownload.Value = value;
         }
 
@@ -108,35 +112,46 @@ namespace ConanExilesDownloader
                 return;
             }
 
+            SetProgressBar(0);
             SetControlStatus(false);
 
             try
             {
                 UInt64 manifestContent = Convert.ToUInt64(textBoxManifestContent.Text);
-                Task.Run(async () =>
-                {
-                    await SteamDB.ContentDownloader.DownloadAppAsync(AppIdClient, DepotIdClientContent, manifestContent, textBoxInstalllocationClient.Text);
-                    MessageBox.Show("Client Content download finished!", Program.AppName);
-                });
+                UInt64 manifestBinaries = 0;
 
                 if (false == String.IsNullOrWhiteSpace(textBoxManifestBinaries.Text))
-                {
-                    UInt64 manifestBinaries = Convert.ToUInt64(textBoxManifestBinaries.Text);
+                    manifestBinaries = Convert.ToUInt64(textBoxManifestBinaries.Text);
 
-                    Task.Run(async () =>
+                var downloadThread = new Thread(new ThreadStart(async () => 
+                {
+                    try
+                    {
+                        await SteamDB.ContentDownloader.DownloadAppAsync(AppIdClient, DepotIdClientContent, manifestContent, textBoxInstalllocationClient.Text);
+                        MessageBox.Show("Client Content download finished!", Program.AppName, MessageBoxButtons.OK, MessageBoxIcon.Information);
+                        SetProgressBar(0);
+                        SetControlStatus(true);
+                    }
+                    catch(Exception ex)
+                    {
+                        MessageBox.Show($"Error at download: {ex}", Program.AppName);
+                        FileLog.LogMessage($"Error at download: {ex}");
+                    }
+
+                    if (manifestBinaries != 0)
                     {
                         await SteamDB.ContentDownloader.DownloadAppAsync(AppIdClient, DepotIdClientBinaries, manifestBinaries, textBoxInstalllocationClient.Text);
                         MessageBox.Show("Client Binaries download finished!", Program.AppName);
-                    });
-                }
+                        SetProgressBar(0);
+                        SetControlStatus(true);
+                    }
+                }));
+                downloadThread.Start();
             }
             catch(Exception ex)
             {
                 MessageBox.Show($"Error: {ex}", Program.AppName);
                 FileLog.LogMessage($"Error at download: {ex}");
-            }
-            finally
-            {
                 SetControlStatus(true);
             }
         }
@@ -155,33 +170,38 @@ namespace ConanExilesDownloader
                 return;
             }
 
+            SetProgressBar(0);
             SetControlStatus(false);
 
             try
             {
-                UInt64 manifestContent = Convert.ToUInt64(textBoxManifestServer.Text);
-                Task.Run(async () =>
+                UInt64 manifestServer = Convert.ToUInt64(textBoxManifestServer.Text);
+                var downloadThread = new Thread(new ThreadStart(async () =>
                 {
-                    await SteamDB.ContentDownloader.DownloadAppAsync(AppIdServer, DepotIdServer, manifestContent, textBoxInstalllocationServer.Text);
-                    MessageBox.Show("Server download finished!", Program.AppName);
-                });
+                    await SteamDB.ContentDownloader.DownloadAppAsync(AppIdServer, DepotIdServer, manifestServer, textBoxInstalllocationServer.Text);
+                    MessageBox.Show("Server download finished!", Program.AppName, MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    SetProgressBar(0);
+                    SetControlStatus(true);
+                }));
+                downloadThread.Start();
             }
             catch (Exception ex)
             {
                 MessageBox.Show($"Error: {ex}", Program.AppName);
                 FileLog.LogMessage($"Error at download: {ex}");
-            }
-            finally
-            {
                 SetControlStatus(true);
             }
         }
 
         private void MainWindow_Load(Object sender, EventArgs e)
         {
+            FileLog.IsEnabled = false;
             CenterToScreen();
 
             _setProgressBar = SetProgressBar;
+            _setControlStatus = SetControlStatus;
+
+            checkBoxEnabledLogging.Checked = FileLog.IsEnabled;
 
             var conanClientDirectory = Path.Combine(Directory.GetCurrentDirectory(), "ConanClient");
             var conanServerDirectory = Path.Combine(Directory.GetCurrentDirectory(), "ConanServer");
@@ -199,8 +219,24 @@ namespace ConanExilesDownloader
 
         private void SetControlStatus(Boolean enabled)
         {
+            if (buttonDownloadClient.InvokeRequired)
+                buttonDownloadClient.Invoke(_setControlStatus, enabled);
+
             buttonDownloadClient.Enabled = enabled;
             buttonDownloadServer.Enabled = enabled;
+            textBoxInstalllocationClient.Enabled = enabled;
+            textBoxInstalllocationServer.Enabled = enabled;
+            textBoxManifestBinaries.Enabled = enabled;
+            textBoxManifestContent.Enabled = enabled;
+            textBoxManifestServer.Enabled = enabled;
+            buttonBrowsePathClient.Enabled = enabled;
+            buttonBrowsePathServer.Enabled = enabled;
+            checkBoxEnabledLogging.Enabled = enabled;
+        }
+
+        private void checkBoxEnabledLogging_CheckedChanged(Object sender, EventArgs e)
+        {
+            FileLog.IsEnabled = checkBoxEnabledLogging.Checked;
         }
     }
 }
