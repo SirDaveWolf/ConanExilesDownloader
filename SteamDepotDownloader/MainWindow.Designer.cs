@@ -29,13 +29,14 @@ namespace ConanExilesDownloader
         /// </summary>
         private void InitializeComponent()
         {
+            this.components = new System.ComponentModel.Container();
             this.label1 = new System.Windows.Forms.Label();
             this.linkLabel1 = new System.Windows.Forms.LinkLabel();
             this.label2 = new System.Windows.Forms.Label();
-            this.textBoxAppId = new System.Windows.Forms.TextBox();
-            this.textBoxDepotIdContent = new System.Windows.Forms.TextBox();
+            this.textBoxManifestContent = new System.Windows.Forms.TextBox();
+            this.textBoxManifestBinaries = new System.Windows.Forms.TextBox();
             this.label3 = new System.Windows.Forms.Label();
-            this.textBoxDepotIdBinaries = new System.Windows.Forms.TextBox();
+            this.textBoxManifestServer = new System.Windows.Forms.TextBox();
             this.label4 = new System.Windows.Forms.Label();
             this.linkLabelGoToContent = new System.Windows.Forms.LinkLabel();
             this.linkLabelGoToBinaries = new System.Windows.Forms.LinkLabel();
@@ -50,6 +51,7 @@ namespace ConanExilesDownloader
             this.buttonDownloadClient = new System.Windows.Forms.Button();
             this.buttonDownloadServer = new System.Windows.Forms.Button();
             this.buttonQuit = new System.Windows.Forms.Button();
+            this.timerCallbacks = new System.Windows.Forms.Timer(this.components);
             this.SuspendLayout();
             // 
             // label1
@@ -81,19 +83,19 @@ namespace ConanExilesDownloader
             this.label2.TabIndex = 2;
             this.label2.Text = "Manifest Client Content:";
             // 
-            // textBoxAppId
+            // textBoxManifestContent
             // 
-            this.textBoxAppId.Location = new System.Drawing.Point(150, 37);
-            this.textBoxAppId.Name = "textBoxAppId";
-            this.textBoxAppId.Size = new System.Drawing.Size(206, 20);
-            this.textBoxAppId.TabIndex = 3;
+            this.textBoxManifestContent.Location = new System.Drawing.Point(150, 37);
+            this.textBoxManifestContent.Name = "textBoxManifestContent";
+            this.textBoxManifestContent.Size = new System.Drawing.Size(206, 20);
+            this.textBoxManifestContent.TabIndex = 3;
             // 
-            // textBoxDepotIdContent
+            // textBoxManifestBinaries
             // 
-            this.textBoxDepotIdContent.Location = new System.Drawing.Point(150, 63);
-            this.textBoxDepotIdContent.Name = "textBoxDepotIdContent";
-            this.textBoxDepotIdContent.Size = new System.Drawing.Size(206, 20);
-            this.textBoxDepotIdContent.TabIndex = 5;
+            this.textBoxManifestBinaries.Location = new System.Drawing.Point(150, 63);
+            this.textBoxManifestBinaries.Name = "textBoxManifestBinaries";
+            this.textBoxManifestBinaries.Size = new System.Drawing.Size(206, 20);
+            this.textBoxManifestBinaries.TabIndex = 5;
             // 
             // label3
             // 
@@ -104,12 +106,12 @@ namespace ConanExilesDownloader
             this.label3.TabIndex = 4;
             this.label3.Text = "Manifest Client Binaries:";
             // 
-            // textBoxDepotIdBinaries
+            // textBoxManifestServer
             // 
-            this.textBoxDepotIdBinaries.Location = new System.Drawing.Point(150, 89);
-            this.textBoxDepotIdBinaries.Name = "textBoxDepotIdBinaries";
-            this.textBoxDepotIdBinaries.Size = new System.Drawing.Size(206, 20);
-            this.textBoxDepotIdBinaries.TabIndex = 7;
+            this.textBoxManifestServer.Location = new System.Drawing.Point(150, 89);
+            this.textBoxManifestServer.Name = "textBoxManifestServer";
+            this.textBoxManifestServer.Size = new System.Drawing.Size(206, 20);
+            this.textBoxManifestServer.TabIndex = 7;
             // 
             // label4
             // 
@@ -242,6 +244,11 @@ namespace ConanExilesDownloader
             this.buttonQuit.UseVisualStyleBackColor = true;
             this.buttonQuit.Click += new System.EventHandler(this.buttonQuit_Click);
             // 
+            // timerCallbacks
+            // 
+            this.timerCallbacks.Interval = 1000;
+            this.timerCallbacks.Tick += new System.EventHandler(this.timerCallbacks_Tick);
+            // 
             // MainWindow
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
@@ -260,11 +267,11 @@ namespace ConanExilesDownloader
             this.Controls.Add(this.linkLabelGoToServer);
             this.Controls.Add(this.linkLabelGoToBinaries);
             this.Controls.Add(this.linkLabelGoToContent);
-            this.Controls.Add(this.textBoxDepotIdBinaries);
+            this.Controls.Add(this.textBoxManifestServer);
             this.Controls.Add(this.label4);
-            this.Controls.Add(this.textBoxDepotIdContent);
+            this.Controls.Add(this.textBoxManifestBinaries);
             this.Controls.Add(this.label3);
-            this.Controls.Add(this.textBoxAppId);
+            this.Controls.Add(this.textBoxManifestContent);
             this.Controls.Add(this.label2);
             this.Controls.Add(this.linkLabel1);
             this.Controls.Add(this.label1);
@@ -282,10 +289,10 @@ namespace ConanExilesDownloader
         private System.Windows.Forms.Label label1;
         private System.Windows.Forms.LinkLabel linkLabel1;
         private System.Windows.Forms.Label label2;
-        private System.Windows.Forms.TextBox textBoxAppId;
-        private System.Windows.Forms.TextBox textBoxDepotIdContent;
+        private System.Windows.Forms.TextBox textBoxManifestContent;
+        private System.Windows.Forms.TextBox textBoxManifestBinaries;
         private System.Windows.Forms.Label label3;
-        private System.Windows.Forms.TextBox textBoxDepotIdBinaries;
+        private System.Windows.Forms.TextBox textBoxManifestServer;
         private System.Windows.Forms.Label label4;
         private System.Windows.Forms.LinkLabel linkLabelGoToContent;
         private System.Windows.Forms.LinkLabel linkLabelGoToBinaries;
@@ -300,6 +307,7 @@ namespace ConanExilesDownloader
         private System.Windows.Forms.Button buttonDownloadClient;
         private System.Windows.Forms.Button buttonDownloadServer;
         private System.Windows.Forms.Button buttonQuit;
+        private System.Windows.Forms.Timer timerCallbacks;
     }
 }
 

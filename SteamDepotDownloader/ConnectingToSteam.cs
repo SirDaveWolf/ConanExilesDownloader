@@ -35,7 +35,7 @@ namespace ConanExilesDownloader
 
         private void TimerSteamCallbacks_Tick(Object sender, EventArgs e)
         {
-            Program.SteamSession.RunCallbacks(TimeSpan.FromSeconds(1));
+            Program.SteamSession.RunCallbacks(true, TimeSpan.FromSeconds(1));
         }
 
         private void ConnectingToSteam_FormClosing(Object sender, FormClosingEventArgs e)

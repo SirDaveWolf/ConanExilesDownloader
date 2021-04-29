@@ -119,6 +119,7 @@ namespace ConanExilesDownloader
             this.MaximizeBox = false;
             this.Name = "LoginWindow";
             this.Text = "Steam Login";
+            this.Load += new System.EventHandler(this.LoginWindow_Load);
             this.ResumeLayout(false);
             this.PerformLayout();
 

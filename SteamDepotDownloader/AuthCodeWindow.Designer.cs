@@ -88,6 +88,7 @@ namespace ConanExilesDownloader
             this.Name = "AuthCodeWindow";
             this.Text = "Steam Guard";
             this.FormClosed += new System.Windows.Forms.FormClosedEventHandler(this.AuthCodeWindow_FormClosed);
+            this.Load += new System.EventHandler(this.AuthCodeWindow_Load);
             this.Shown += new System.EventHandler(this.AuthCodeWindow_Shown);
             this.ResumeLayout(false);
             this.PerformLayout();

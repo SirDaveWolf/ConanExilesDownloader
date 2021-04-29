@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.IO;
@@ -8,6 +9,7 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Forms;
+using ConanExilesDownloader.Logging;
 using SteamKit2;
 
 namespace ConanExilesDownloader.SteamDB
@@ -15,6 +17,8 @@ namespace ConanExilesDownloader.SteamDB
     internal class SteamSession
     {
         private SteamClient _steamClient;
+        public SteamClient Client { get => _steamClient; }
+
         private SteamUser _steamUser;
         private CallbackManager _steamCallbackManager;
 
@@ -25,9 +29,16 @@ namespace ConanExilesDownloader.SteamDB
 
         public delegate void LogOffAction();
         private LogOffAction _onLogOff;
+        private Boolean _needReconnect = false;
 
         public ReadOnlyCollection<SteamApps.LicenseListCallback.License> Licenses { get; private set; }
         public Dictionary<UInt32, UInt64> PackageTokens { get; private set; } = new Dictionary<UInt32, UInt64>();
+        public Dictionary<UInt32, UInt64> AppTokens { get; private set; } = new Dictionary<UInt32, UInt64>();
+        public Dictionary<UInt32, SteamApps.PICSProductInfoCallback.PICSProductInfo> PackageInfo { get; private set; } = new Dictionary<UInt32, SteamApps.PICSProductInfoCallback.PICSProductInfo>();
+        public Dictionary<UInt32, SteamApps.PICSProductInfoCallback.PICSProductInfo> AppInfo { get; private set; } = new Dictionary<UInt32, SteamApps.PICSProductInfoCallback.PICSProductInfo>();
+        public ConcurrentDictionary<String, TaskCompletionSource<SteamApps.CDNAuthTokenCallback>> CDNAuthTokens { get; private set; } = new ConcurrentDictionary<String, TaskCompletionSource<SteamApps.CDNAuthTokenCallback>>();
+        public Dictionary<UInt32, Byte[]> AppTickets { get; private set; } = new Dictionary<UInt32, Byte[]>();
+        public Dictionary<UInt32, Byte[]> DepotKeys { get; private set; } = new Dictionary<UInt32, Byte[]>();
 
         public SteamSession()
         {
@@ -59,17 +70,102 @@ namespace ConanExilesDownloader.SteamDB
 
         public void Login()
         {
+            FileLog.LogMessage("Login requested!");
             _steamClient.Connect();
         }
 
         public void Logoff(LogOffAction logOffAction)
         {
+            FileLog.LogMessage("Logoff requested!");
             _onLogOff = logOffAction;
             _steamUser.LogOff();
         }
 
-        public void RequestPackageInfo(List<UInt32> packageIds)
+        public async Task RequestAppInfo(UInt32 appId)
         {
+            var appTokens = await _steamApps.PICSGetAccessTokens(appId, null);
+            foreach(var token in appTokens.AppTokens)
+            {
+                AppTokens[token.Key] = token.Value;
+            }
+
+            SteamApps.PICSRequest request = new SteamApps.PICSRequest(appId);
+            if (AppTokens.ContainsKey(appId))
+            {
+                request.AccessToken = AppTokens[appId];
+                request.Public = false;
+            }
+
+            var resultSet = await _steamApps.PICSGetProductInfo(new List<SteamApps.PICSRequest>() { request }, new List<SteamApps.PICSRequest>() { });
+            if(resultSet.Complete)
+            {
+                foreach(var appInfo in resultSet.Results)
+                {
+                    foreach (var app_value in appInfo.Apps)
+                    {
+                        var app = app_value.Value;
+                        AppInfo[app.ID] = app;
+                    }
+
+                    foreach (var app in appInfo.UnknownApps)
+                    {
+                        AppInfo[app] = null;
+                    }
+                }
+            }
+        }
+
+        public async Task RequestPackageInfo(IEnumerable<UInt32> packageIds)
+        {
+            var packages = packageIds.ToList();
+            packages.RemoveAll(pid => PackageInfo.ContainsKey(pid));
+
+            var packageRequests = new List<SteamApps.PICSRequest>();
+            foreach (var package in packages)
+            {
+                var request = new SteamApps.PICSRequest(package);
+
+                if (PackageTokens.TryGetValue(package, out var token))
+                {
+                    request.AccessToken = token;
+                    request.Public = false;
+                }
+
+                packageRequests.Add(request);
+            }
+
+            var resultSet = await _steamApps.PICSGetProductInfo(new List<SteamApps.PICSRequest>(), packageRequests);
+            if (resultSet.Complete)
+            {
+                foreach (var packageInfo in resultSet.Results)
+                {
+                    foreach (var package_value in packageInfo.Packages)
+                    {
+                        var package = package_value.Value;
+                        PackageInfo[package.ID] = package;
+                    }
+
+                    foreach (var package in packageInfo.UnknownPackages)
+                    {
+                        PackageInfo[package] = null;
+                    }
+                }
+            }
+        }
+
+        public async Task<Boolean> RequestCDNAuthToken(UInt32 appId, UInt32 depotId, String host, String cdnKey)
+        {
+            if (false == CDNAuthTokens.TryAdd(cdnKey, new TaskCompletionSource<SteamApps.CDNAuthTokenCallback>()))
+                return true;
+
+            var token = await _steamApps.GetCDNAuthToken(appId, depotId, host);
+            if(token.Result == EResult.OK)
+            {
+                CDNAuthTokens[cdnKey].TrySetResult(token);
+                return true;
+            }
+
+            return false;
         }
 
         /***
@@ -78,13 +174,21 @@ namespace ConanExilesDownloader.SteamDB
          * 
          * ***/
 
-        public void RunCallbacks(TimeSpan waitTime)
+        public void RunCallbacks(Boolean all = false, TimeSpan waitTime = default(TimeSpan))
         {
-            _steamCallbackManager.RunWaitAllCallbacks(waitTime);
+            if (all)
+            {
+                _steamCallbackManager.RunWaitAllCallbacks(waitTime);
+            }
+            else
+            {
+                _steamCallbackManager.RunCallbacks();
+            }
         }
 
         private void ConnectedCallback(SteamClient.ConnectedCallback callback)
         {
+            FileLog.LogMessage($"Steam connected!");
             byte[] sentryHash = null;
             if (File.Exists(Program.SteamUserCredentials.SentryFileName))
             {
@@ -98,15 +202,17 @@ namespace ConanExilesDownloader.SteamDB
                 Password = Program.SteamUserCredentials.GetPlainTextPassword(),
                 AuthCode = Program.SteamUserCredentials.AuthCode,
                 TwoFactorCode = Program.SteamUserCredentials.TwoFactorCode,
-                SentryFileHash = sentryHash
+                SentryFileHash = sentryHash,
             });
         }
 
         private void DisconnectedCallback(SteamClient.DisconnectedCallback callback)
         {
-            if (false == callback.UserInitiated)
+            FileLog.LogMessage($"Steam disconnected! WasUser? {callback.UserInitiated}");
+            if (false == callback.UserInitiated || _needReconnect)
             {
                 Thread.Sleep(TimeSpan.FromMilliseconds(100));
+                _needReconnect = false;
                 _steamClient.Connect();
             }
             else
@@ -115,10 +221,25 @@ namespace ConanExilesDownloader.SteamDB
             }
         }
 
+        internal async Task RequestDepotKey(UInt32 depotId, UInt32 appId)
+        {
+            var key = await _steamApps.GetDepotDecryptionKey(depotId, appId);
+            if(key.Result == EResult.OK)
+            {
+                DepotKeys[key.DepotID] = key.DepotKey;
+            }
+            else
+            {
+                FileLog.LogMessage($"Unable to get depot key for {depotId}! Result: {key.Result}");
+            }
+        }
+
         private void LogOnCallback(SteamUser.LoggedOnCallback obj)
         {
             var steamGuardRequired = obj.Result == EResult.AccountLogonDenied;
             var isTwoFactorAuth = obj.Result == EResult.AccountLoginDeniedNeedTwoFactor;
+
+            FileLog.LogMessage($"Steam logged on! SteamGuard? {steamGuardRequired}, 2FA? {isTwoFactorAuth}");
 
             if (steamGuardRequired || isTwoFactorAuth)
             {
@@ -148,6 +269,7 @@ namespace ConanExilesDownloader.SteamDB
             {
                 Program.ConnectingToSteamWindow.PauseCallbacks();
                 MessageBox.Show($"There have been too many login failures from your network in a short time period.\nPlease wait and try again later.", Program.AppName, MessageBoxButtons.OK, MessageBoxIcon.Error);
+                FileLog.LogMessage($"There have been too many login failures from your network in a short time period.\nPlease wait and try again later.");
                 Application.Restart();
                 return;
             }
@@ -156,6 +278,7 @@ namespace ConanExilesDownloader.SteamDB
             {
                 Program.ConnectingToSteamWindow.PauseCallbacks();
                 MessageBox.Show($"Unable to login to this account! Error: {obj.Result}", Program.AppName, MessageBoxButtons.OK, MessageBoxIcon.Error);
+                FileLog.LogMessage($"Unable to login to this account! Error: {obj.Result}");
                 Application.Restart();
             }
             else
@@ -168,6 +291,7 @@ namespace ConanExilesDownloader.SteamDB
 
         private void MachineAuthCallback(SteamUser.UpdateMachineAuthCallback obj)
         {
+            FileLog.LogMessage($"MachineAuthCallback called! Sentryfile: {obj.FileName}");
             int fileSize;
             byte[] sentryHash;
             var sentryFile = Path.Combine(Program.LocalConfigFolder, obj.FileName);
@@ -202,11 +326,13 @@ namespace ConanExilesDownloader.SteamDB
                 SentryFileHash = sentryHash
             });
 
-            _steamClient.Disconnect();
+            //_needReconnect = true;
+            //_steamClient.Disconnect();
         }
 
         private void OnLoggedOff(SteamUser.LoggedOffCallback obj)
         {
+            FileLog.LogMessage($"Steam logged off! {obj.Result}");
             _steamClient.Disconnect();
         }
 
@@ -217,6 +343,8 @@ namespace ConanExilesDownloader.SteamDB
 
         private void UpdateMachineAuthCallback(SteamUser.UpdateMachineAuthCallback obj)
         {
+            FileLog.LogMessage($"UpdateMachineAuthCallback called! New sentryfile: {obj.FileName}");
+
             int fileSize;
             byte[] sentryHash;
             var sentryFile = Path.Combine(Program.LocalConfigFolder, obj.FileName);
@@ -250,15 +378,16 @@ namespace ConanExilesDownloader.SteamDB
 
         private void SessionTokenCallback(SteamUser.SessionTokenCallback obj)
         {
+            FileLog.LogMessage($"SessionTokenCallback called!");
             Program.SteamUserCredentials.SessionToken = obj.SessionToken;
         }
 
         private void LicenseListCallback(SteamApps.LicenseListCallback obj)
         {
-            if(obj.Result != EResult.OK)
+            FileLog.LogMessage($"LicenseListCallback called!");
+            if (obj.Result != EResult.OK)
             {
                 MessageBox.Show($"Unable top receive license list! Error: {obj.Result}", Program.AppName);
-
                 return;
             }
 
@@ -272,48 +401,6 @@ namespace ConanExilesDownloader.SteamDB
                         PackageTokens.Add(license.PackageID, license.AccessToken);
                 }
             }
-        }
-
-        public delegate Boolean WaitCondition();
-        private object steamLock = new object();
-        private Int32 seq;
-
-        public Boolean WaitUntilCallback(Action submitter, WaitCondition waiter)
-        {
-            while (!waiter())
-            {
-                lock (steamLock)
-                {
-                    submitter();
-                }
-
-                int seq = this.seq;
-                do
-                {
-                    lock (steamLock)
-                    {
-                        WaitForCallbacks();
-                    }
-                }
-                while (this.seq == seq && !waiter());
-            }
-
-            return true;
-        }
-
-        private void WaitForCallbacks()
-        {
-            _steamCallbackManager.RunWaitCallbacks(TimeSpan.FromSeconds(1));
-
-            //TimeSpan diff = DateTime.Now - connectTime;
-
-            //if (diff > STEAM3_TIMEOUT && !bConnected)
-            //{
-            //    Console.WriteLine("Timeout connecting to Steam3.");
-            //    Abort();
-
-            //    return;
-            //}
         }
     }
 }

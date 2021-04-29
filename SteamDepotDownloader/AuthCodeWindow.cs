@@ -68,5 +68,10 @@ namespace ConanExilesDownloader
         {
             Program.AuthCodeWindow = null;
         }
+
+        private void AuthCodeWindow_Load(Object sender, EventArgs e)
+        {
+            CenterToScreen();
+        }
     }
 }

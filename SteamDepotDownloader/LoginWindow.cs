@@ -52,5 +52,10 @@ namespace ConanExilesDownloader
                 buttonLogin_Click(sender, e);
             }
         }
+
+        private void LoginWindow_Load(Object sender, EventArgs e)
+        {
+            CenterToScreen();
+        }
     }
 }

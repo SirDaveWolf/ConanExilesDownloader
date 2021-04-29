@@ -72,6 +72,7 @@
     <Compile Include="ConnectingToSteam.Designer.cs">
       <DependentUpon>ConnectingToSteam.cs</DependentUpon>
     </Compile>
+    <Compile Include="Logging\FileLog.cs" />
     <Compile Include="LoginWindow.cs">
       <SubType>Form</SubType>
     </Compile>
@@ -86,8 +87,11 @@
     </Compile>
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="SteamDB\CDNClientPool.cs" />
     <Compile Include="SteamDB\ContentDownloader.cs" />
+    <Compile Include="SteamDB\DepotDownloadInfo.cs" />
     <Compile Include="SteamDB\DownloadInformation.cs" />
+    <Compile Include="SteamDB\ProtoManifest.cs" />
     <Compile Include="SteamDB\SteamSession.cs" />
     <Compile Include="SteamDB\SteamUserCredentials.cs" />
     <Compile Include="AuthCodeWindow.cs">
@@ -96,6 +100,7 @@
     <Compile Include="AuthCodeWindow.Designer.cs">
       <DependentUpon>AuthCodeWindow.cs</DependentUpon>
     </Compile>
+    <Compile Include="SteamDB\Util.cs" />
     <EmbeddedResource Include="ConnectingToSteam.resx">
       <DependentUpon>ConnectingToSteam.cs</DependentUpon>
     </EmbeddedResource>
