@@ -283,6 +283,11 @@ namespace ConanExilesDownloader.SteamDB
             }
             else
             {
+                if (ContentDownloader.Config.CellID == 0)
+                {
+                    ContentDownloader.Config.CellID = (Int32)obj.CellID;
+                }
+
                 Program.SteamUserCredentials.LoggedOn = true;
                 Program.MainWindow.Show();
                 Program.ConnectingToSteamWindow.Close();

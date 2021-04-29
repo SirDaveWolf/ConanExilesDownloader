@@ -21,7 +21,7 @@ namespace ConanExilesDownloader.SteamDB
 
         const UInt64 INVALID_MANIFEST_ID = UInt64.MaxValue;
 
-        public static String InstallDirectory { get; set; }
+        public static DownloadConfig Config = new DownloadConfig();
 
         public static async Task DownloadAppAsync(UInt32 appId, UInt32 depotId, UInt64 manifestId, String downloadFolder)
         {
@@ -35,8 +35,6 @@ namespace ConanExilesDownloader.SteamDB
                 try
                 {
                     await DownloadSteam3Async(appId, info, cdnPool).ConfigureAwait(false);
-
-                    MessageBox.Show("Download finished!", Program.AppName);
                 }
                 catch (OperationCanceledException)
                 {
@@ -65,7 +63,7 @@ namespace ConanExilesDownloader.SteamDB
                 Directory.CreateDirectory(baseDir);
 
                 installDir = baseDir;
-                InstallDirectory = installDir;
+                Config.InstallDirectory = installDir;
 
                 Directory.CreateDirectory(Path.Combine(installDir, CONFIG_DIR));
                 Directory.CreateDirectory(Path.Combine(installDir, STAGING_DIR));
@@ -243,7 +241,7 @@ namespace ConanExilesDownloader.SteamDB
                 if (otherAppId == appId)
                 {
                     // This shouldn't ever happen, but ya never know with Valve. Don't infinite loop.
-                    Console.WriteLine("App {0}, Depot {1} has depotfromapp of {2}!",
+                    FileLog.LogMessage("App {0}, Depot {1} has depotfromapp of {2}!",
                         appId, depotId, otherAppId);
                     return INVALID_MANIFEST_ID;
                 }
@@ -295,7 +293,7 @@ namespace ConanExilesDownloader.SteamDB
         {
             DepotDownloadCounter depotCounter = new DepotDownloadCounter();
 
-            Console.WriteLine("Processing depot {0} - {1}", depot.id, depot.contentName);
+            FileLog.LogMessage("Processing depot {0} - {1}", depot.id, depot.contentName);
 
             ProtoManifest oldProtoManifest = null;
             ProtoManifest newProtoManifest = null;
@@ -331,7 +329,7 @@ namespace ConanExilesDownloader.SteamDB
             //        {
             //            // We only have to show this warning if the old manifest ID was different
             //            if (lastManifestId != depot.manifestId)
-            //                Console.WriteLine("Manifest {0} on disk did not match the expected checksum.", lastManifestId);
+            //                FileLog.LogMessage("Manifest {0} on disk did not match the expected checksum.", lastManifestId);
             //            oldProtoManifest = null;
             //        }
             //    }
@@ -340,7 +338,7 @@ namespace ConanExilesDownloader.SteamDB
             if (lastManifestId == depot.manifestId && oldProtoManifest != null)
             {
                 newProtoManifest = oldProtoManifest;
-                Console.WriteLine("Already have manifest {0} for depot {1}.", depot.manifestId, depot.id);
+                FileLog.LogMessage("Already have manifest {0} for depot {1}.", depot.manifestId, depot.id);
             }
             else
             {
@@ -362,14 +360,14 @@ namespace ConanExilesDownloader.SteamDB
 
                     if (newProtoManifest != null && (expectedChecksum == null || !expectedChecksum.SequenceEqual(currentChecksum)))
                     {
-                        Console.WriteLine("Manifest {0} on disk did not match the expected checksum.", depot.manifestId);
+                        FileLog.LogMessage("Manifest {0} on disk did not match the expected checksum.", depot.manifestId);
                         newProtoManifest = null;
                     }
                 }
 
                 if (newProtoManifest != null)
                 {
-                    Console.WriteLine("Already have manifest {0} for depot {1}.", depot.manifestId, depot.id);
+                    FileLog.LogMessage("Already have manifest {0} for depot {1}.", depot.manifestId, depot.id);
                 }
                 else
                 {
@@ -400,7 +398,7 @@ namespace ConanExilesDownloader.SteamDB
                         }
                         catch (TaskCanceledException)
                         {
-                            Console.WriteLine("Connection timeout downloading depot manifest {0} {1}", depot.id, depot.manifestId);
+                            FileLog.LogMessage("Connection timeout downloading depot manifest {0} {1}", depot.id, depot.manifestId);
                         }
                         catch (SteamKitWebRequestException e)
                         {
@@ -408,17 +406,17 @@ namespace ConanExilesDownloader.SteamDB
 
                             if (e.StatusCode == HttpStatusCode.Unauthorized || e.StatusCode == HttpStatusCode.Forbidden)
                             {
-                                Console.WriteLine("Encountered 401 for depot manifest {0} {1}. Aborting.", depot.id, depot.manifestId);
+                                FileLog.LogMessage("Encountered 401 for depot manifest {0} {1}. Aborting.", depot.id, depot.manifestId);
                                 break;
                             }
                             else if (e.StatusCode == HttpStatusCode.NotFound)
                             {
-                                Console.WriteLine("Encountered 404 for depot manifest {0} {1}. Aborting.", depot.id, depot.manifestId);
+                                FileLog.LogMessage("Encountered 404 for depot manifest {0} {1}. Aborting.", depot.id, depot.manifestId);
                                 break;
                             }
                             else
                             {
-                                Console.WriteLine("Encountered error downloading depot manifest {0} {1}: {2}", depot.id, depot.manifestId, e.StatusCode);
+                                FileLog.LogMessage("Encountered error downloading depot manifest {0} {1}: {2}", depot.id, depot.manifestId, e.StatusCode);
                             }
                         }
                         catch (OperationCanceledException)
@@ -428,14 +426,14 @@ namespace ConanExilesDownloader.SteamDB
                         catch (Exception e)
                         {
                             cdnPool.ReturnBrokenConnection(connection);
-                            Console.WriteLine("Encountered error downloading manifest for depot {0} {1}: {2}", depot.id, depot.manifestId, e.Message);
+                            FileLog.LogMessage("Encountered error downloading manifest for depot {0} {1}: {2}", depot.id, depot.manifestId, e.Message);
                         }
                     }
                     while (depotManifest == null);
 
                     if (depotManifest == null)
                     {
-                        Console.WriteLine("\nUnable to download manifest {0} for depot {1}", depot.manifestId, depot.id);
+                        FileLog.LogMessage("\nUnable to download manifest {0} for depot {1}", depot.manifestId, depot.id);
                         cts.Cancel();
                     }
 
@@ -448,13 +446,13 @@ namespace ConanExilesDownloader.SteamDB
                     newProtoManifest.SaveToFile(newManifestFileName, out checksum);
                     File.WriteAllBytes(newManifestFileName + ".sha", checksum);
 
-                    Console.WriteLine(" Done!");
+                    FileLog.LogMessage(" Done!");
                 }
             }
 
             newProtoManifest.Files.Sort((x, y) => string.Compare(x.FileName, y.FileName, StringComparison.Ordinal));
 
-            Console.WriteLine("Manifest {0} ({1})", depot.manifestId, newProtoManifest.CreationTime);
+            FileLog.LogMessage("Manifest {0} ({1})", depot.manifestId, newProtoManifest.CreationTime);
 
             //if (Config.DownloadManifestOnly)
             //{
@@ -532,7 +530,7 @@ namespace ConanExilesDownloader.SteamDB
             //        return true;
             //}
 
-            return false;
+            return true;
         }
 
         private static async Task DownloadSteam3AsyncDepotFiles(CancellationTokenSource cts, UInt32 appId,
@@ -541,7 +539,7 @@ namespace ConanExilesDownloader.SteamDB
             var depot = depotFilesData.depotDownloadInfo;
             var depotCounter = depotFilesData.depotCounter;
 
-            Console.WriteLine("Downloading depot {0} - {1}", depot.id, depot.contentName);
+            FileLog.LogMessage("Downloading depot {0} - {1}", depot.id, depot.contentName);
 
             var files = depotFilesData.filteredFiles.Where(f => !f.Flags.HasFlag(EDepotFileFlag.Directory)).ToArray();
             var networkChunkQueue = new ConcurrentQueue<(FileStreamData fileStreamData, ProtoManifest.FileData fileData, ProtoManifest.ChunkData chunk)>();
@@ -565,7 +563,7 @@ namespace ConanExilesDownloader.SteamDB
                 var previousFilteredFiles = depotFilesData.previousManifest.Files.AsParallel().Where(f => TestIsFileIncluded(f.FileName)).Select(f => f.FileName).ToHashSet();
 
                 // Check if we are writing to a single output directory. If not, each depot folder is managed independently
-                if (string.IsNullOrWhiteSpace(ContentDownloader.InstallDirectory))
+                if (string.IsNullOrWhiteSpace(ContentDownloader.Config.InstallDirectory))
                 {
                     // Of the list of files in the previous manifest, remove any file names that exist in the current set of all file names
                     previousFilteredFiles.ExceptWith(depotFilesData.allFileNames);
@@ -584,14 +582,14 @@ namespace ConanExilesDownloader.SteamDB
                         continue;
 
                     File.Delete(fileFinalPath);
-                    Console.WriteLine("Deleted {0}", fileFinalPath);
+                    FileLog.LogMessage("Deleted {0}", fileFinalPath);
                 }
             }
 
             //DepotConfigStore.Instance.InstalledManifestIDs[depot.id] = depot.manifestId;
             //DepotConfigStore.Save();
 
-            Console.WriteLine("Depot {0} - Downloaded {1} bytes ({2} bytes uncompressed)", depot.id, depotCounter.DepotBytesCompressed, depotCounter.DepotBytesUncompressed);
+            FileLog.LogMessage("Depot {0} - Downloaded {1} bytes ({2} bytes uncompressed)", depot.id, depotCounter.DepotBytesCompressed, depotCounter.DepotBytesUncompressed);
         }
 
         private static void DownloadSteam3AsyncDepotFile(
@@ -621,7 +619,7 @@ namespace ConanExilesDownloader.SteamDB
             FileInfo fi = new FileInfo(fileFinalPath);
             if (!fi.Exists)
             {
-                Console.WriteLine("Pre-allocating {0}", fileFinalPath);
+                FileLog.LogMessage("Pre-allocating {0}", fileFinalPath);
 
                 // create new file. need all chunks
                 fs = File.Create(fileFinalPath);
@@ -646,7 +644,7 @@ namespace ConanExilesDownloader.SteamDB
                         // we have a version of this file, but it doesn't fully match what we want
                         //if (Config.VerifyAll)
                         //{
-                        //    Console.WriteLine("Validating {0}", fileFinalPath);
+                        //    FileLog.LogMessage("Validating {0}", fileFinalPath);
                         //}
 
                         var matchingChunks = new List<ChunkMatch>();
@@ -706,7 +704,7 @@ namespace ConanExilesDownloader.SteamDB
                         fs.SetLength((long)file.TotalSize);
                     }
 
-                    Console.WriteLine("Validating {0}", fileFinalPath);
+                    FileLog.LogMessage("Validating {0}", fileFinalPath);
                     neededChunks = Util.ValidateSteam3FileChecksums(fs, file.Chunks.OrderBy(x => x.Offset).ToArray());
                 }
 
@@ -715,7 +713,7 @@ namespace ConanExilesDownloader.SteamDB
                     lock (depotDownloadCounter)
                     {
                         depotDownloadCounter.SizeDownloaded += (ulong)file.TotalSize;
-                        Console.WriteLine("{0,6:#00.00}% {1}", ((float)depotDownloadCounter.SizeDownloaded / (float)depotDownloadCounter.CompleteDownloadSize) * 100.0f, fileFinalPath);
+                        FileLog.LogMessage("{0,6:#00.00}% {1}", ((float)depotDownloadCounter.SizeDownloaded / (float)depotDownloadCounter.CompleteDownloadSize) * 100.0f, fileFinalPath);
                     }
 
                     if (fs != null)
@@ -793,7 +791,7 @@ namespace ConanExilesDownloader.SteamDB
                 }
                 catch (TaskCanceledException)
                 {
-                    Console.WriteLine("Connection timeout downloading chunk {0}", chunkID);
+                    FileLog.LogMessage("Connection timeout downloading chunk {0}", chunkID);
                 }
                 catch (SteamKitWebRequestException e)
                 {
@@ -801,12 +799,12 @@ namespace ConanExilesDownloader.SteamDB
 
                     if (e.StatusCode == HttpStatusCode.Unauthorized || e.StatusCode == HttpStatusCode.Forbidden)
                     {
-                        Console.WriteLine("Encountered 401 for chunk {0}. Aborting.", chunkID);
+                        FileLog.LogMessage("Encountered 401 for chunk {0}. Aborting.", chunkID);
                         break;
                     }
                     else
                     {
-                        Console.WriteLine("Encountered error downloading chunk {0}: {1}", chunkID, e.StatusCode);
+                        FileLog.LogMessage("Encountered error downloading chunk {0}: {1}", chunkID, e.StatusCode);
                     }
                 }
                 catch (OperationCanceledException)
@@ -816,14 +814,14 @@ namespace ConanExilesDownloader.SteamDB
                 catch (Exception e)
                 {
                     cdnPool.ReturnBrokenConnection(connection);
-                    Console.WriteLine("Encountered unexpected error downloading chunk {0}: {1}", chunkID, e.Message);
+                    FileLog.LogMessage("Encountered unexpected error downloading chunk {0}: {1}", chunkID, e.Message);
                 }
             }
             while (chunkData == null);
 
             if (chunkData == null)
             {
-                Console.WriteLine("Failed to find any server with chunk {0} for depot {1}. Aborting.", chunkID, depot.id);
+                FileLog.LogMessage("Failed to find any server with chunk {0} for depot {1}. Aborting.", chunkID, depot.id);
                 cts.Cancel();
             }
 
@@ -867,7 +865,8 @@ namespace ConanExilesDownloader.SteamDB
             if (remainingChunks == 0)
             {
                 var fileFinalPath = Path.Combine(depot.installDir, file.FileName);
-                Console.WriteLine("{0,6:#00.00}% {1}", ((float)sizeDownloaded / (float)depotDownloadCounter.CompleteDownloadSize) * 100.0f, fileFinalPath);
+                FileLog.LogMessage("{0,6:#00.00}% {1}", ((float)sizeDownloaded / (float)depotDownloadCounter.CompleteDownloadSize) * 100.0f, fileFinalPath);
+                Program.MainWindow.SetProgressBar((Int32)(((float)sizeDownloaded / (float)depotDownloadCounter.CompleteDownloadSize)) * 100);
             }
 
         }

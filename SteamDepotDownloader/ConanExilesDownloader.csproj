@@ -90,6 +90,7 @@
     <Compile Include="SteamDB\CDNClientPool.cs" />
     <Compile Include="SteamDB\ContentDownloader.cs" />
     <Compile Include="SteamDB\DepotDownloadInfo.cs" />
+    <Compile Include="SteamDB\DownloadConfig.cs" />
     <Compile Include="SteamDB\DownloadInformation.cs" />
     <Compile Include="SteamDB\ProtoManifest.cs" />
     <Compile Include="SteamDB\SteamSession.cs" />

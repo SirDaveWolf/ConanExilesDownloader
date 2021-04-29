@@ -26,6 +26,16 @@ namespace ConanExilesDownloader
             InitializeComponent();
         }
 
+        private delegate void PGB(Int32 v);
+        private PGB _setProgressBar;
+
+        public void SetProgressBar(Int32 value)
+        {
+            if (this.progressBarDownload.InvokeRequired)
+                this.Invoke(_setProgressBar, value);
+            this.progressBarDownload.Value = value;
+        }
+
         private void linkLabel1_LinkClicked(Object sender, LinkLabelLinkClickedEventArgs e)
         {
             Process.Start("https://steamdb.info/app/440900/depots/");
@@ -84,7 +94,7 @@ namespace ConanExilesDownloader
             }
         }
 
-        private async void buttonDownloadClient_Click(Object sender, EventArgs e)
+        private void buttonDownloadClient_Click(Object sender, EventArgs e)
         {
             if (String.IsNullOrWhiteSpace(textBoxManifestContent.Text))
             {
@@ -94,21 +104,30 @@ namespace ConanExilesDownloader
 
             if (String.IsNullOrWhiteSpace(textBoxInstalllocationClient.Text))
             {
-                MessageBox.Show("Please provide an install folder!", Program.AppName);
+                MessageBox.Show("Please provide a client install folder!", Program.AppName);
                 return;
             }
 
+            SetControlStatus(false);
+
             try
             {
-
                 UInt64 manifestContent = Convert.ToUInt64(textBoxManifestContent.Text);
-                await SteamDB.ContentDownloader.DownloadAppAsync(AppIdClient, DepotIdClientContent, manifestContent, textBoxInstalllocationClient.Text);
+                Task.Run(async () =>
+                {
+                    await SteamDB.ContentDownloader.DownloadAppAsync(AppIdClient, DepotIdClientContent, manifestContent, textBoxInstalllocationClient.Text);
+                    MessageBox.Show("Client Content download finished!", Program.AppName);
+                });
 
                 if (false == String.IsNullOrWhiteSpace(textBoxManifestBinaries.Text))
                 {
-                    SetControlStatus(false);
                     UInt64 manifestBinaries = Convert.ToUInt64(textBoxManifestBinaries.Text);
-                    await SteamDB.ContentDownloader.DownloadAppAsync(AppIdClient, DepotIdClientBinaries, manifestBinaries, textBoxInstalllocationClient.Text);
+
+                    Task.Run(async () =>
+                    {
+                        await SteamDB.ContentDownloader.DownloadAppAsync(AppIdClient, DepotIdClientBinaries, manifestBinaries, textBoxInstalllocationClient.Text);
+                        MessageBox.Show("Client Binaries download finished!", Program.AppName);
+                    });
                 }
             }
             catch(Exception ex)
@@ -122,7 +141,7 @@ namespace ConanExilesDownloader
             }
         }
 
-        private async void buttonDownloadServer_Click(Object sender, EventArgs e)
+        private void buttonDownloadServer_Click(Object sender, EventArgs e)
         {
             if (String.IsNullOrWhiteSpace(textBoxManifestServer.Text))
             {
@@ -132,26 +151,37 @@ namespace ConanExilesDownloader
 
             if (String.IsNullOrWhiteSpace(textBoxInstalllocationServer.Text))
             {
-                MessageBox.Show("Please provide an install folder!", Program.AppName);
+                MessageBox.Show("Please provide a server install folder!", Program.AppName);
                 return;
             }
 
+            SetControlStatus(false);
+
             try
             {
-
                 UInt64 manifestContent = Convert.ToUInt64(textBoxManifestServer.Text);
-                await SteamDB.ContentDownloader.DownloadAppAsync(AppIdServer, DepotIdServer, manifestContent, textBoxInstalllocationServer.Text);
+                Task.Run(async () =>
+                {
+                    await SteamDB.ContentDownloader.DownloadAppAsync(AppIdServer, DepotIdServer, manifestContent, textBoxInstalllocationServer.Text);
+                    MessageBox.Show("Server download finished!", Program.AppName);
+                });
             }
             catch (Exception ex)
             {
                 MessageBox.Show($"Error: {ex}", Program.AppName);
                 FileLog.LogMessage($"Error at download: {ex}");
             }
+            finally
+            {
+                SetControlStatus(true);
+            }
         }
 
         private void MainWindow_Load(Object sender, EventArgs e)
         {
             CenterToScreen();
+
+            _setProgressBar = SetProgressBar;
 
             var conanClientDirectory = Path.Combine(Directory.GetCurrentDirectory(), "ConanClient");
             var conanServerDirectory = Path.Combine(Directory.GetCurrentDirectory(), "ConanServer");

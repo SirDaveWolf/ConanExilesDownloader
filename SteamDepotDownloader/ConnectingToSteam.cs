@@ -29,6 +29,8 @@ namespace ConanExilesDownloader
 
         private void ConnectingToSteam_Load(Object sender, EventArgs e)
         {
+            CenterToScreen();
+
             timerSteamCallbacks.Tick += TimerSteamCallbacks_Tick;
             timerSteamCallbacks.Start();
         }

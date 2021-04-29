@@ -1,4 +1,5 @@
-﻿using SteamKit2;
+﻿using ConanExilesDownloader.Logging;
+using SteamKit2;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
@@ -14,57 +15,52 @@ namespace ConanExilesDownloader.SteamDB
     /// </summary>
     class CDNClientPool
     {
+        private const int ServerEndpointMinimumSize = 8;
+
+        private readonly SteamSession steamSession = Program.SteamSession;
+        private readonly uint appId;
         public CDNClient CDNClient { get; }
-
-        private const Int32 ServerEndpointMinimumSize = 8;
-
-        private readonly UInt32 _appId;
-
 #if STEAMKIT_UNRELEASED
         public CDNClient.Server ProxyServer { get; private set; }
 #endif
 
-        private readonly ConcurrentStack<CDNClient.Server> _activeConnectionPool;
-        private readonly BlockingCollection<CDNClient.Server> _availableServerEndpoints;
+        private readonly ConcurrentStack<CDNClient.Server> activeConnectionPool;
+        private readonly BlockingCollection<CDNClient.Server> availableServerEndpoints;
 
-        private readonly AutoResetEvent _populatePoolEvent;
-        private readonly Task _monitorTask;
-        private readonly CancellationTokenSource _shutdownToken;
-
-        private ConcurrentDictionary<String, Int32> ContentServerPenalty { get; set; } = new ConcurrentDictionary<String, Int32>();
-
+        private readonly AutoResetEvent populatePoolEvent;
+        private readonly Task monitorTask;
+        private readonly CancellationTokenSource shutdownToken;
         public CancellationTokenSource ExhaustedToken { get; set; }
 
         public CDNClientPool(UInt32 appId)
         {
-            this._appId = appId;
+            this.appId = appId;
+            CDNClient = new CDNClient(steamSession.Client);
 
-            CDNClient = new CDNClient(Program.SteamSession.Client);
+            activeConnectionPool = new ConcurrentStack<CDNClient.Server>();
+            availableServerEndpoints = new BlockingCollection<CDNClient.Server>();
 
-            _activeConnectionPool = new ConcurrentStack<CDNClient.Server>();
-            _availableServerEndpoints = new BlockingCollection<CDNClient.Server>();
+            populatePoolEvent = new AutoResetEvent(true);
+            shutdownToken = new CancellationTokenSource();
 
-            _populatePoolEvent = new AutoResetEvent(true);
-            _shutdownToken = new CancellationTokenSource();
-
-            _monitorTask = Task.Factory.StartNew(ConnectionPoolMonitorAsync).Unwrap();
+            monitorTask = Task.Factory.StartNew(ConnectionPoolMonitorAsync).Unwrap();
         }
 
         public void Shutdown()
         {
-            _shutdownToken.Cancel();
-            _monitorTask.Wait();
+            shutdownToken.Cancel();
+            monitorTask.Wait();
         }
 
         private async Task<IReadOnlyCollection<CDNClient.Server>> FetchBootstrapServerListAsync()
         {
             var backoffDelay = 0;
 
-            while (!_shutdownToken.IsCancellationRequested)
+            while (!shutdownToken.IsCancellationRequested)
             {
                 try
                 {
-                    var cdnServers = await ContentServerDirectoryService.LoadAsync(Program.SteamSession.Client.Configuration);
+                    var cdnServers = await ContentServerDirectoryService.LoadAsync(this.steamSession.Client.Configuration, ContentDownloader.Config.CellID, shutdownToken.Token);
                     if (cdnServers != null)
                     {
                         return cdnServers;
@@ -72,7 +68,7 @@ namespace ConanExilesDownloader.SteamDB
                 }
                 catch (Exception ex)
                 {
-                    Console.WriteLine("Failed to retrieve content server list: {0}", ex.Message);
+                    FileLog.LogMessage("Failed to retrieve content server list: {0}", ex.Message);
 
                     if (ex is SteamKitWebRequestException e && e.StatusCode == (HttpStatusCode)429)
                     {
@@ -88,14 +84,14 @@ namespace ConanExilesDownloader.SteamDB
 
         private async Task ConnectionPoolMonitorAsync()
         {
-            var didPopulate = false;
+            bool didPopulate = false;
 
-            while (!_shutdownToken.IsCancellationRequested)
+            while (!shutdownToken.IsCancellationRequested)
             {
-                _populatePoolEvent.WaitOne(TimeSpan.FromSeconds(1));
+                populatePoolEvent.WaitOne(TimeSpan.FromSeconds(1));
 
                 // We want the Steam session so we can take the CellID from the session and pass it through to the ContentServer Directory Service
-                if (_availableServerEndpoints.Count < ServerEndpointMinimumSize && Program.SteamSession.Client.IsConnected)
+                if (availableServerEndpoints.Count < ServerEndpointMinimumSize && steamSession.Client.IsConnected)
                 {
                     var servers = await FetchBootstrapServerListAsync().ConfigureAwait(false);
 
@@ -121,9 +117,7 @@ namespace ConanExilesDownloader.SteamDB
                         })
                         .Select(server =>
                         {
-                            ContentServerPenalty.TryGetValue(server.Host, out var penalty);
-
-                            return (server, penalty);
+                            return (server, penalty: default(Int32));
                         })
                         .OrderBy(pair => pair.penalty).ThenBy(pair => pair.server.WeightedLoad);
 
@@ -131,15 +125,13 @@ namespace ConanExilesDownloader.SteamDB
                     {
                         for (var i = 0; i < server.NumEntries; i++)
                         {
-                            _availableServerEndpoints.Add(server);
+                            availableServerEndpoints.Add(server);
                         }
                     }
 
                     didPopulate = true;
                 }
-                else if (_availableServerEndpoints.Count == 0 
-                    && false == Program.SteamSession.Client.IsConnected 
-                    && didPopulate)
+                else if (availableServerEndpoints.Count == 0 && !steamSession.Client.IsConnected && didPopulate)
                 {
                     ExhaustedToken?.Cancel();
                     return;
@@ -149,17 +141,17 @@ namespace ConanExilesDownloader.SteamDB
 
         private CDNClient.Server BuildConnection(CancellationToken token)
         {
-            if (_availableServerEndpoints.Count < ServerEndpointMinimumSize)
+            if (availableServerEndpoints.Count < ServerEndpointMinimumSize)
             {
-                _populatePoolEvent.Set();
+                populatePoolEvent.Set();
             }
 
-            return _availableServerEndpoints.Take(token);
+            return availableServerEndpoints.Take(token);
         }
 
         public CDNClient.Server GetConnection(CancellationToken token)
         {
-            if (!_activeConnectionPool.TryPop(out var connection))
+            if (!activeConnectionPool.TryPop(out var connection))
             {
                 connection = BuildConnection(token);
             }
@@ -167,28 +159,21 @@ namespace ConanExilesDownloader.SteamDB
             return connection;
         }
 
-        public async Task<string> AuthenticateConnection(UInt32 appId, UInt32 depotId, CDNClient.Server server)
+        public async Task<string> AuthenticateConnection(uint appId, uint depotId, CDNClient.Server server)
         {
             var host = ResolveCDNTopLevelHost(server.Host);
             var cdnKey = $"{depotId:D}:{host}";
 
-            var result = await Program.SteamSession.RequestCDNAuthToken(appId, depotId, host, cdnKey);
-            if (result)
-            {
+            await steamSession.RequestCDNAuthToken(appId, depotId, host, cdnKey);
 
-                if (Program.SteamSession.CDNAuthTokens.TryGetValue(cdnKey, out var authTokenCallbackPromise))
-                {
-                    var taskResult = await authTokenCallbackPromise.Task;
-                    return taskResult.Token;
-                }
-                else
-                {
-                    throw new Exception($"Failed to retrieve CDN token for server {server.Host} depot {depotId}");
-                }
+            if (steamSession.CDNAuthTokens.TryGetValue(cdnKey, out var authTokenCallbackPromise))
+            {
+                var result = await authTokenCallbackPromise.Task;
+                return result.Token;
             }
             else
             {
-                throw new Exception("Unable to request CDN Auth Token!");
+                throw new Exception($"Failed to retrieve CDN token for server {server.Host} depot {depotId}");
             }
         }
 
@@ -211,7 +196,7 @@ namespace ConanExilesDownloader.SteamDB
         {
             if (server == null) return;
 
-            _activeConnectionPool.Push(server);
+            activeConnectionPool.Push(server);
         }
 
         public void ReturnBrokenConnection(CDNClient.Server server)
